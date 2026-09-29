@@ -1,0 +1,168 @@
+name: Bump oMLX cask
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-omlx
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: macos-26
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
+        with:
+          token: ${{ github.token }}
+
+      - name: Resolve latest stable oMLX DMG
+        id: release
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release="$({
+            gh api --paginate --slurp \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/jundot/omlx/releases?per_page=100"
+          } | ruby -rjson -rrubygems -e '
+            releases = JSON.parse($stdin.read).flatten
+            matches = releases.filter_map do |candidate|
+              next if candidate["draft"] || candidate["prerelease"]
+
+              match = candidate["tag_name"].to_s.match(/\Av?(\d+(?:\.\d+)+)\z/)
+              next unless match
+
+              version = match[1]
+              asset = candidate["assets"].find do |item|
+                item["name"] == "oMLX-#{version}-macos26-27.dmg"
+              end
+              next unless asset
+
+              digest = asset["digest"].to_s
+              next unless digest.match?(/\Asha256:[0-9a-f]{64}\z/)
+
+              [Gem::Version.new(version), version, digest.delete_prefix("sha256:")]
+            end
+
+            selected = matches.max_by(&:first)
+            abort "No stable oMLX macOS 26-27 DMG with a published SHA-256 digest was found" unless selected
+
+            puts "#{selected[1]}\t#{selected[2]}"
+          ')"
+
+          IFS=$'\t' read -r version sha256 <<<"$release"
+          current_version="$(sed -nE 's/^[[:space:]]+version "([^"]+)"/\1/p' Casks/omlx.rb)"
+
+          if ruby -rrubygems -e 'exit(Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1]) ? 0 : 1)' \
+            "$version" "$current_version"
+          then
+            update=true
+          else
+            update=false
+          fi
+
+          printf 'version=%s\nsha256=%s\nupdate=%s\n' \
+            "$version" "$sha256" "$update" >>"$GITHUB_OUTPUT"
+
+      - name: Check for an existing bump pull request
+        id: existing-pr
+        if: steps.release.outputs.update == 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          branch="bump-omlx-${VERSION}"
+          url="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$branch" \
+            --state open \
+            --json url \
+            --jq '.[0].url // empty')"
+
+          if [[ -n "$url" ]]; then
+            exists=true
+          else
+            exists=false
+          fi
+
+          printf 'branch=%s\nexists=%s\nurl=%s\n' \
+            "$branch" "$exists" "$url" >>"$GITHUB_OUTPUT"
+
+      - name: Update cask from published release metadata
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          SHA256: ${{ steps.release.outputs.sha256 }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          brew bump-cask-pr \
+            --write-only \
+            --no-audit \
+            --no-style \
+            --version="$VERSION" \
+            --sha256="$SHA256" \
+            timshadel/tools/omlx
+
+      - name: Validate cask
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        run: |
+          ruby -c Casks/omlx.rb
+          brew style Casks/omlx.rb
+          brew audit --cask --strict timshadel/tools/omlx
+
+      - name: Commit and open pull request
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          BRANCH: ${{ steps.existing-pr.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+          SHA256: ${{ steps.release.outputs.sha256 }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Remote branch $BRANCH already exists without an open pull request" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add Casks/omlx.rb
+          git commit -m "omlx ${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$BRANCH" \
+            --title "omlx ${VERSION}" \
+            --body "Updates the oMLX cask to ${VERSION} using the SHA-256 digest published for the official macOS 26-27 release asset: \`${SHA256}\`."
+
+          gh workflow run tests.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+
+      - name: Report result
+        if: always()
+        env:
+          CURRENT: ${{ steps.release.outputs.update }}
+          EXISTING_PR: ${{ steps.existing-pr.outputs.url }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if [[ "$CURRENT" != "true" ]]; then
+            echo "oMLX is already current at ${VERSION}." >>"$GITHUB_STEP_SUMMARY"
+          elif [[ -n "$EXISTING_PR" ]]; then
+            echo "An oMLX ${VERSION} bump is already open: ${EXISTING_PR}" >>"$GITHUB_STEP_SUMMARY"
+          else
+            echo "Opened an oMLX ${VERSION} bump and dispatched tap tests." >>"$GITHUB_STEP_SUMMARY"
+          fi
