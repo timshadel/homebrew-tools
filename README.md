@@ -1,6 +1,6 @@
 # Homebrew Tools Tap
 
-This is a personal Homebrew tap that provides additional formulae not (yet) available in [homebrew-core](https://github.com/Homebrew/homebrew-core).
+This personal Homebrew tap provides command-line tools and macOS applications that are not available from the official Homebrew repositories.
 
 ## Installation
 
@@ -10,16 +10,36 @@ First, add the tap:
 brew tap timshadel/tools
 ```
 
-Then install a formula, for example **pikchr**:
+Then install any package listed below.
+
+## Formulae
+
+### `pikchr`
+
+Command-line tool for rendering Pikchr diagrams as SVG.
 
 ```bash
 brew install pikchr
 ```
 
-## Available Formulae
+## Casks
 
-- `pikchr` — Command-line tool to render fenced Pikchr code blocks in Markdown or text as inline or standalone SVG.
+### `omlx`
+
+Official oMLX LLM inference server and menu bar application for Apple Silicon Macs running macOS 26 or 27.
+
+```bash
+brew install --cask omlx
+```
+
+### `openclaw-1p-sdk-resolver`
+
+OpenClaw exec secrets provider backed by the official 1Password Go SDK. Supports Intel and Apple Silicon Macs.
+
+```bash
+brew install --cask openclaw-1p-sdk-resolver
+```
 
 ## Notes
 
-These formulae are maintained in this tap until they meet the requirements for inclusion in Homebrew/core.
+Packages in this tap may be maintained here permanently or until they meet the requirements for inclusion in an official Homebrew repository.

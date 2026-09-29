@@ -3,13 +3,13 @@ cask "openclaw-1p-sdk-resolver" do
   version "0.5.0"
 
   on_macos do
-    on_intel do
-      sha256 "f4143540900938a6503172fbedd701f2ab6837942334cf693f731c101bbb5e2a"
-      url "https://github.com/timshadel/openclaw-1p-sdk-resolver/releases/download/v#{version}/openclaw-1p-sdk-resolver_#{version}_darwin_amd64.tar.gz"
-    end
     on_arm do
       sha256 "f60b0d96e086c4f81792f929595701285a806061e5da92529ba606a817023dbd"
       url "https://github.com/timshadel/openclaw-1p-sdk-resolver/releases/download/v#{version}/openclaw-1p-sdk-resolver_#{version}_darwin_arm64.tar.gz"
+    end
+    on_intel do
+      sha256 "f4143540900938a6503172fbedd701f2ab6837942334cf693f731c101bbb5e2a"
+      url "https://github.com/timshadel/openclaw-1p-sdk-resolver/releases/download/v#{version}/openclaw-1p-sdk-resolver_#{version}_darwin_amd64.tar.gz"
     end
   end
 
@@ -23,9 +23,10 @@ cask "openclaw-1p-sdk-resolver" do
 
   binary "openclaw-1p-sdk-resolver"
 
-  postflight do
-    if OS.mac?
-      system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/openclaw-1p-sdk-resolver"]
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr",
+          args: ["-dr", "com.apple.quarantine", "{{staged_path}}/openclaw-1p-sdk-resolver"]
     end
   end
 
