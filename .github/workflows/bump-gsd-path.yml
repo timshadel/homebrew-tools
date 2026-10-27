@@ -1,0 +1,183 @@
+name: Bump GSD Path cask
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 6 * * *"
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-gsd-path
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: macos-26
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
+        with:
+          token: ${{ github.token }}
+
+      - name: Resolve latest GSD Path app DMGs
+        id: release
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release="$({
+            gh api --paginate --slurp \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/open-gsd/gsd-path/releases?per_page=100"
+          } | ruby -rjson -rrubygems -e '
+            releases = JSON.parse($stdin.read).flatten
+            matches = releases.filter_map do |candidate|
+              next if candidate["draft"]
+
+              # Upstream publishes desktop app builds as prereleases.
+              match = candidate["tag_name"].to_s.match(/\Aapp-v(\d+(?:\.\d+)+)\z/)
+              next unless match
+
+              version = match[1]
+              digests = %w[aarch64 x64].map do |arch|
+                asset = candidate.fetch("assets", []).find do |item|
+                  item["name"] == "OpenGSD.Path_#{version}_#{arch}.dmg"
+                end
+                digest = asset&.fetch("digest", nil).to_s
+                digest.delete_prefix("sha256:") if digest.match?(/\Asha256:[0-9a-f]{64}\z/)
+              end
+              next if digests.any?(&:nil?)
+
+              [Gem::Version.new(version), version, *digests]
+            end
+
+            selected = matches.max_by(&:first)
+            abort "No GSD Path app release with both macOS DMGs and published SHA-256 digests was found" unless selected
+
+            puts selected.drop(1).join("\t")
+          ')"
+
+          IFS=$'\t' read -r version arm_sha256 intel_sha256 <<<"$release"
+          current_version="$(sed -nE 's/^[[:space:]]+version "([^"]+)"/\1/p' Casks/gsd-path.rb)"
+
+          if ruby -rrubygems -e 'exit(Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1]) ? 0 : 1)' \
+            "$version" "$current_version"
+          then
+            update=true
+          else
+            update=false
+          fi
+
+          printf 'version=%s\narm_sha256=%s\nintel_sha256=%s\nupdate=%s\n' \
+            "$version" "$arm_sha256" "$intel_sha256" "$update" >>"$GITHUB_OUTPUT"
+
+      - name: Check for an existing bump pull request
+        id: existing-pr
+        if: steps.release.outputs.update == 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          branch="bump-gsd-path-${VERSION}"
+          url="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$branch" \
+            --state open \
+            --json url \
+            --jq '.[0].url // empty')"
+
+          if [[ -n "$url" ]]; then
+            exists=true
+          else
+            exists=false
+          fi
+
+          printf 'branch=%s\nexists=%s\nurl=%s\n' \
+            "$branch" "$exists" "$url" >>"$GITHUB_OUTPUT"
+
+      - name: Update cask from published release metadata
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          ARM_SHA256: ${{ steps.release.outputs.arm_sha256 }}
+          INTEL_SHA256: ${{ steps.release.outputs.intel_sha256 }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          ruby -e '
+            path = "Casks/gsd-path.rb"
+            contents = File.read(path)
+            replacements = {
+              /^  version "[^"]+"$/ => "  version \"#{ENV.fetch("VERSION")}\"",
+              /^  sha256 arm:   "[0-9a-f]{64}",$/ => "  sha256 arm:   \"#{ENV.fetch("ARM_SHA256")}\",",
+              /^         intel: "[0-9a-f]{64}"$/ => "         intel: \"#{ENV.fetch("INTEL_SHA256")}\"",
+            }
+            replacements.each do |pattern, replacement|
+              abort "Expected exactly one match for #{pattern}" unless contents.scan(pattern).length == 1
+
+              contents.sub!(pattern, replacement)
+            end
+            File.write(path, contents)
+          '
+
+      - name: Validate cask
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        run: |
+          ruby -c Casks/gsd-path.rb
+          brew style Casks/gsd-path.rb
+          brew audit --cask --strict timshadel/tools/gsd-path
+
+      - name: Commit and open pull request
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        env:
+          BRANCH: ${{ steps.existing-pr.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Remote branch $BRANCH already exists without an open pull request" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add Casks/gsd-path.rb
+          git commit -m "gsd-path ${VERSION}"
+          git push origin "$BRANCH"
+
+          printf 'Updates the GSD Path cask to %s using the published SHA-256 digests for the official Apple Silicon and Intel DMGs.\n' \
+            "$VERSION" >"$RUNNER_TEMP/gsd-path-bump-body.md"
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$BRANCH" \
+            --title "gsd-path ${VERSION}" \
+            --body-file "$RUNNER_TEMP/gsd-path-bump-body.md"
+
+          gh workflow run tests.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+
+      - name: Report result
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          CURRENT: ${{ steps.release.outputs.update }}
+          EXISTING_PR: ${{ steps.existing-pr.outputs.url }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if [[ "$JOB_STATUS" != "success" ]]; then
+            echo "GSD Path bump failed; see the workflow logs." >>"$GITHUB_STEP_SUMMARY"
+          elif [[ "$CURRENT" != "true" ]]; then
+            echo "GSD Path is already current at ${VERSION}." >>"$GITHUB_STEP_SUMMARY"
+          elif [[ -n "$EXISTING_PR" ]]; then
+            echo "A GSD Path ${VERSION} bump is already open: ${EXISTING_PR}" >>"$GITHUB_STEP_SUMMARY"
+          else
+            echo "Opened a GSD Path ${VERSION} bump and dispatched tap tests." >>"$GITHUB_STEP_SUMMARY"
+          fi

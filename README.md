@@ -24,6 +24,16 @@ brew install pikchr
 
 ## Casks
 
+### `gsd-path`
+
+OpenGSD Path desktop dashboard for the GSD Path AI agent workflow. Supports Intel and Apple Silicon Macs.
+
+```bash
+brew install --cask gsd-path
+```
+
+The daily GitHub Actions updater follows `app-v*` desktop releases, including upstream's prerelease builds, and opens a pull request with the new version and both DMG SHA-256 hashes. It can also be run manually using the **Bump GSD Path cask** workflow.
+
 ### `omlx`
 
 Official oMLX LLM inference server and menu bar application for Apple Silicon Macs running macOS 26 or 27.
