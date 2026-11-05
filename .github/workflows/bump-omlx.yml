@@ -35,7 +35,7 @@ jobs:
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "/repos/jundot/omlx/releases?per_page=100"
           } | ruby -rjson -rrubygems -e '
-            releases = JSON.parse($stdin.read).flatten
+            releases = JSON.parse(STDIN.read).flatten
             matches = releases.filter_map do |candidate|
               next if candidate["draft"] || candidate["prerelease"]
 
@@ -155,11 +155,14 @@ jobs:
       - name: Report result
         if: always()
         env:
+          JOB_STATUS: ${{ job.status }}
           CURRENT: ${{ steps.release.outputs.update }}
           EXISTING_PR: ${{ steps.existing-pr.outputs.url }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if [[ "$CURRENT" != "true" ]]; then
+          if [[ "$JOB_STATUS" != "success" ]]; then
+            echo "oMLX bump failed; see the workflow logs." >>"$GITHUB_STEP_SUMMARY"
+          elif [[ "$CURRENT" != "true" ]]; then
             echo "oMLX is already current at ${VERSION}." >>"$GITHUB_STEP_SUMMARY"
           elif [[ -n "$EXISTING_PR" ]]; then
             echo "An oMLX ${VERSION} bump is already open: ${EXISTING_PR}" >>"$GITHUB_STEP_SUMMARY"

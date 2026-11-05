@@ -21,6 +21,8 @@ cask "openclaw-1p-sdk-resolver" do
     skip "Auto-generated on release."
   end
 
+  depends_on :macos
+
   binary "openclaw-1p-sdk-resolver"
 
   postflight_steps do
@@ -30,7 +32,7 @@ cask "openclaw-1p-sdk-resolver" do
     end
   end
 
-  # No zap stanza required
+  zap :not_required
 
   caveats <<~EOS
     After install or upgrade, set OCOP_SERVICE_ACCOUNT_TOKEN_NAME for the single token item you want this binary to use, then run:
