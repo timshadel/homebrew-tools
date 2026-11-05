@@ -36,5 +36,5 @@ cask "omlx" do
 
   app "oMLX.app"
 
-  # No zap stanza required
+  zap :not_required
 end

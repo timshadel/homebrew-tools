@@ -39,5 +39,5 @@ cask "gsd-path" do
 
   app "OpenGSD Path.app"
 
-  # No zap stanza required
+  zap :not_required
 end
