@@ -35,7 +35,7 @@ jobs:
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "/repos/open-gsd/gsd-path/releases?per_page=100"
           } | ruby -rjson -rrubygems -e '
-            releases = JSON.parse($stdin.read).flatten
+            releases = JSON.parse(STDIN.read).flatten
             matches = releases.filter_map do |candidate|
               next if candidate["draft"]
 
