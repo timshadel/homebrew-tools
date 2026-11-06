@@ -1,9 +1,9 @@
 cask "gsd-path" do
   arch arm: "aarch64", intel: "x64"
 
-  version "0.1.1"
-  sha256 arm:   "6147d1825cc6d5d48ae49bcb244257c997159960fffb94f49332a1402937046e",
-         intel: "47b4d4ac5782dc782b2af808d36a6473a380a3520593b34de963927217cc27bc"
+  version "0.1.3"
+  sha256 arm:   "b87d1789114d1da40a1b3113e548e06cc2cfbf0ef8e6a434856b0470d3dbb633",
+         intel: "beb8bde4aabccdb70ba7516075893e651fad097dbd1040fca2584ed8dec74385"
 
   url "https://github.com/open-gsd/gsd-path/releases/download/app-v#{version}/OpenGSD.Path_#{version}_#{arch}.dmg"
   name "OpenGSD Path"
