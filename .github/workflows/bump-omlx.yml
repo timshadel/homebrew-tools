@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   bump:
-    runs-on: macos-26
+    # Release metadata and static cask validation do not require a Mac.
+    runs-on: ubuntu-24.04
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
@@ -120,7 +121,7 @@ jobs:
         run: |
           ruby -c Casks/omlx.rb
           brew style Casks/omlx.rb
-          brew audit --cask --strict timshadel/tools/omlx
+          brew audit --cask --strict --os=tahoe --arch=arm timshadel/tools/omlx
 
       - name: Commit and open pull request
         if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
