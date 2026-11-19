@@ -24,6 +24,16 @@ brew install pikchr
 
 ## Casks
 
+### `flying-logic`
+
+Flying Logic visual reasoning and planning software. Supports Intel and Apple Silicon Macs running macOS 11 or later.
+
+```bash
+brew install --cask timshadel/tools/flying-logic
+```
+
+The official download includes a 14-day trial. Continued editing requires a paid subscription; after the trial, the app can still open documents in Reader Mode. `brew livecheck --cask timshadel/tools/flying-logic` checks the vendor's download page for updates. The vendor replaces the DMGs at unversioned URLs, so the cask uses Homebrew's `sha256 :no_check` convention.
+
 ### `gsd-path`
 
 OpenGSD Path desktop dashboard for the GSD Path AI agent workflow. Supports Intel and Apple Silicon Macs.

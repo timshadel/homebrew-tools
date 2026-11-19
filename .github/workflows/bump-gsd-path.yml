@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   bump:
-    runs-on: macos-26
+    # Release metadata and static cask validation do not require a Mac.
+    runs-on: ubuntu-24.04
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
@@ -131,7 +132,7 @@ jobs:
         run: |
           ruby -c Casks/gsd-path.rb
           brew style Casks/gsd-path.rb
-          brew audit --cask --strict timshadel/tools/gsd-path
+          brew audit --cask --strict --os=tahoe --arch=all timshadel/tools/gsd-path
 
       - name: Commit and open pull request
         if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
