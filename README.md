@@ -60,31 +60,66 @@ OpenClaw exec secrets provider backed by the official 1Password Go SDK. Supports
 brew install --cask openclaw-1p-sdk-resolver
 ```
 
-### `currently`
+## Currently UPS monitor (formula)
 
-Currently is an alpha UPS monitoring daemon that exposes a NUT-compatible server,
-Prometheus, REST, and SNMP. Its macOS IOKit USB access is designed to coexist with
-Apple's native UPS shutdown handling, but has not yet been validated on real
-macOS UPS hardware. This tap starts at upstream v0.1.0-alpha1. The daily and manually dispatched
-**Bump Currently cask** GitHub Actions workflow checks upstream releases,
-including prereleases, and opens review PRs with official macOS artifact hashes.
-The cask removes quarantine from the installed `currently` executable **and its
-Caskroom version directory** in scoped post-install steps. On macOS 27, leaving
-quarantine on the containing directory caused the executable to remain
-launch-suspended even after clearing the binary's own attribute. This does not
-change macOS Gatekeeper settings for other applications.
+Currently is a UPS monitoring daemon exposing NUT, REST, Prometheus and SNMP.
+This tap builds Currently from a pinned upstream Git tag and installs its CLI and
+plugins as a Homebrew formula. **No hardware IDs, device names, IP addresses or
+shutdown policies are included in the formula.**
+
+The formula is versioned by a daily and manually dispatched **Bump Currently
+formula** GitHub Actions workflow, which opens review PRs for new upstream
+releases (including prereleases) rather than merging them automatically.
+
+### Install and migrate from the previous cask
+
+If the old binary-only cask is installed, stop any foreground Currently process
+and uninstall that cask before installing the formula:
 
 ```bash
-brew install --cask timshadel/tools/currently
+brew uninstall --cask timshadel/tools/currently
+brew install timshadel/tools/currently
+currently version
 currently detect
-currently serve
 ```
 
-In another terminal, run `currently status` and `currently vars <UPS_NAME>`.
-Verify that `ups.load` is reported correctly and `pmset -g ps` still shows
-the UPS before enabling a persistent service. To preserve native macOS UPS
-shutdown, **do not configure Currently's `shutdown:` section**. Currently's
-NUT server can then be exposed to Home Assistant on a LAN-only interface.
+No service is started at installation.
+
+### Configure for monitoring only
+
+Discover the local UPS(es), then generate an operator-owned configuration:
+
+```bash
+currently init --yes --no-shutdown --output "$(brew --prefix)/etc/currently/currently.yaml"
+currently config validate --config "$(brew --prefix)/etc/currently/currently.yaml"
+```
+
+**No `shutdown:` section** means Currently will not shut down the host.
+The operator can deliberately enable a shutdown policy later, without
+reinstalling. Native macOS UPS shutdown management remains independent.
+
+The default `listen.nut` and `listen.http` values bind only to localhost.
+For a remote NUT client (such as Home Assistant), opt in by editing the
+operator's `currently.yaml` and setting `listen.nut` to the intended LAN
+address and port (for example, `"0.0.0.0:3493"`). Restrict access to the
+trusted network; NUT reads need no login. No remote publishing is enabled by
+the formula itself.
+
+### Recommended: start at boot as a system service
+
+```bash
+sudo brew services start timshadel/tools/currently
+sudo brew services list
+```
+
+This installs a system LaunchDaemon and runs without anyone being logged in.
+Use `sudo brew services restart timshadel/tools/currently` after changing the
+config. The formula uses Homebrew's stable `opt` path and keeps per-machine
+configuration outside versioned installs. The service is optional; user-level
+service management is also supported by Homebrew.
+
+`brew services` with sudo runs the service as root and trusts Homebrew's prefix
+owner; review the Homebrew security guidance before enabling system service.
 
 ## Notes
 
