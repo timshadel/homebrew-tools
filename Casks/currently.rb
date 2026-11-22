@@ -11,7 +11,7 @@ cask "currently" do
   homepage "https://github.com/duskglow/currently"
 
   livecheck do
-    skip "Alpha prerelease pinned until macOS hardware compatibility is verified."
+    skip "Prerelease updates are proposed for review by bump-currently.yml."
   end
 
   depends_on :macos
