@@ -68,9 +68,11 @@ Apple's native UPS shutdown handling, but has not yet been validated on real
 macOS UPS hardware. This tap starts at upstream v0.1.0-alpha1. The daily and manually dispatched
 **Bump Currently cask** GitHub Actions workflow checks upstream releases,
 including prereleases, and opens review PRs with official macOS artifact hashes.
-The cask removes the quarantine attribute from the installed `currently` executable
-in a scoped post-install step, since the current upstream binary is not notarized.
-This does not change macOS Gatekeeper settings for other applications.
+The cask removes quarantine from the installed `currently` executable **and its
+Caskroom version directory** in scoped post-install steps. On macOS 27, leaving
+quarantine on the containing directory caused the executable to remain
+launch-suspended even after clearing the binary's own attribute. This does not
+change macOS Gatekeeper settings for other applications.
 
 ```bash
 brew install --cask timshadel/tools/currently
