@@ -73,7 +73,7 @@ jobs:
             exit 1
           fi
 
-          current_version="$(sed -nE 's/^[[:space:]]+version "([^"]+)"/\1/p' Formula/currently.rb)"
+          current_version="$(sed -nE 's/^[[:space:]]+tag:[[:space:]]+"v([^"]+)"/\1/p' Formula/currently.rb)"
 
           if ruby -rrubygems -e 'exit(Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1]) ? 0 : 1)' \
             "$release" "$current_version"
@@ -122,9 +122,8 @@ jobs:
             path = "Formula/currently.rb"
             contents = File.read(path)
             replacements = {
-              /      tag: "v[^"]+",$/ => "      tag: \"v#{ENV.fetch("VERSION")}\",",
+              /      tag:[[:space:]]+"v[^"]+",$/ => "      tag:      \"v#{ENV.fetch("VERSION")}\",",
               /      revision: "[0-9a-f]{40}"$/ => "      revision: \"#{ENV.fetch("REVISION")}\"",
-              /^  version "[^"]+"$/ => "  version \"#{ENV.fetch("VERSION")}\"",
             }
             replacements.each do |pattern, replacement|
               abort "Expected exactly one match for #{pattern}" unless contents.scan(pattern).length == 1
