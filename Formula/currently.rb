@@ -1,33 +1,28 @@
 class Currently < Formula
   desc "UPS monitoring daemon with NUT, Prometheus, REST, and SNMP"
   homepage "https://github.com/duskglow/currently"
-  url "https://github.com/duskglow/currently.git",
-      tag:      "v0.1.0-alpha1",
-      revision: "b0445ffef9fc12b84b7b40dc8e23cf29c8448267"
+  version "0.1.0-alpha1"
   license "Apache-2.0"
+  revision 1
 
   livecheck do
     skip "Prerelease updates are proposed for review by bump-currently.yml."
   end
 
-  depends_on "go" => :build
   depends_on :macos
 
+  on_arm do
+    url "https://github.com/duskglow/currently/releases/download/v#{version}/currently_#{version}_darwin_arm64.tar.gz"
+    sha256 "d32083711b830b43fe04a13307d89361cbc5dc5f92acc0f9d4afc055e9cd177a"
+  end
+
+  on_intel do
+    url "https://github.com/duskglow/currently/releases/download/v#{version}/currently_#{version}_darwin_amd64.tar.gz"
+    sha256 "846b9d42bd5ad87d665f3ffbda4ff8645784c7f64fde69d3490ca3c7db4f29bc"
+  end
+
   def install
-    libexec.mkpath
-    ldflags = "-s -w -X github.com/duskglow/currently/internal/version.Version=#{version}"
-    system "go", "build", "-trimpath", "-ldflags=#{ldflags}", "-o", libexec/"currently", "./cmd/currently"
-
-    (libexec/"plugins").mkpath
-    {
-      "mqtt"   => "currently-output-mqtt",
-      "snmp"   => "currently-driver-snmp",
-      "serial" => "currently-driver-serial",
-    }.each do |plugin, executable|
-      system "go", "build", "-trimpath", "-ldflags=-s -w",
-             "-o", libexec/"plugins"/executable, "./plugins/#{plugin}"
-    end
-
+    libexec.install "currently", "plugins"
     bin.install_symlink libexec/"currently"
     pkgshare.install "currently.example.yaml"
   end
@@ -66,6 +61,9 @@ class Currently < Formula
 
   test do
     assert_match "currently #{version}", shell_output("#{bin}/currently version")
+    %w[currently-output-mqtt currently-driver-snmp currently-driver-serial].each do |plugin|
+      assert_predicate libexec/"plugins"/plugin, :executable?
+    end
     assert_path_exists pkgshare/"currently.example.yaml"
   end
 end

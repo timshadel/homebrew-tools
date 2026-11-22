@@ -25,7 +25,7 @@ jobs:
         with:
           token: ${{ github.token }}
 
-      - name: Resolve latest tagged Currently source release
+      - name: Resolve latest Currently macOS release
         id: release
         working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
         env:
@@ -59,21 +59,7 @@ jobs:
             puts selected.last
           ')"
 
-          # Resolve annotated or lightweight tag to its actual Git commit.
-          ref_json="$(gh api "/repos/duskglow/currently/git/ref/tags/v${release}")"
-          object_type="$(jq -r '.object.type' <<<"$ref_json")"
-          object_sha="$(jq -r '.object.sha' <<<"$ref_json")"
-          if [[ "$object_type" == "tag" ]]; then
-            tag_json="$(gh api "/repos/duskglow/currently/git/tags/${object_sha}")"
-            object_type="$(jq -r '.object.type' <<<"$tag_json")"
-            object_sha="$(jq -r '.object.sha' <<<"$tag_json")"
-          fi
-          if [[ "$object_type" != "commit" || ! "$object_sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Release tag v$release does not resolve to a Git commit" >&2
-            exit 1
-          fi
-
-          current_version="$(sed -nE 's/^[[:space:]]+tag:[[:space:]]+"v([^"]+)"/\1/p' Formula/currently.rb)"
+          current_version="$(sed -nE 's/^  version "([^"]+)"$/\1/p' Formula/currently.rb)"
 
           if ruby -rrubygems -e 'exit(Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1]) ? 0 : 1)' \
             "$release" "$current_version"
@@ -83,8 +69,8 @@ jobs:
             update=false
           fi
 
-          printf 'version=%s\nrevision=%s\nupdate=%s\n' \
-            "$release" "$object_sha" "$update" >>"$GITHUB_OUTPUT"
+          printf 'version=%s\nupdate=%s\n' \
+            "$release" "$update" >>"$GITHUB_OUTPUT"
 
       - name: Check for an existing bump pull request
         id: existing-pr
@@ -111,26 +97,42 @@ jobs:
           printf 'branch=%s\nexists=%s\nurl=%s\n' \
             "$branch" "$exists" "$url" >>"$GITHUB_OUTPUT"
 
-      - name: Update formula from verified tagged source commit
+      - name: Install cosign
+        if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Update formula from signed release checksums
         if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
         working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
         env:
-          REVISION: ${{ steps.release.outputs.revision }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          ruby -e '
-            path = "Formula/currently.rb"
-            contents = File.read(path)
-            replacements = {
-              /      tag:[[:space:]]+"v[^"]+",$/ => "      tag:      \"v#{ENV.fetch("VERSION")}\",",
-              /      revision: "[0-9a-f]{40}"$/ => "      revision: \"#{ENV.fetch("REVISION")}\"",
-            }
-            replacements.each do |pattern, replacement|
-              abort "Expected exactly one match for #{pattern}" unless contents.scan(pattern).length == 1
-              contents.sub!(pattern, replacement)
-            end
-            File.write(path, contents)
-          '
+          gh release download "v$VERSION" --repo duskglow/currently --dir "$RUNNER_TEMP" \
+            --pattern checksums.txt --pattern checksums.txt.sigstore.json
+          cosign verify-blob --bundle "$RUNNER_TEMP/checksums.txt.sigstore.json" \
+            --certificate-identity "https://github.com/duskglow/currently/.github/workflows/release.yml@refs/tags/v$VERSION" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$RUNNER_TEMP/checksums.txt"
+
+          ruby - "$RUNNER_TEMP/checksums.txt" <<'RUBY'
+          version = ENV.fetch("VERSION")
+          manifest = File.readlines(ARGV.fetch(0), chomp: true)
+          path = "Formula/currently.rb"
+          formula = File.read(path)
+          abort "Expected one formula version" unless formula.scan(/^  version "[^"]+"$/).one?
+          formula.sub!(/^  version "[^"]+"$/, %(  version "#{version}"))
+          formula.sub!(/^  revision \d+\n/, "")
+          %w[arm64 amd64].each do |arch|
+            filename = "currently_#{version}_darwin_#{arch}.tar.gz"
+            digests = manifest.filter_map { |line| line[/\A([0-9a-f]{64})\s+\*?#{Regexp.escape(filename)}\z/, 1] }
+            abort "Expected one signed checksum for #{filename}" unless digests.one?
+            pattern = /(darwin_#{arch}\.tar\.gz"\n\s+sha256 ")[0-9a-f]{64}"/
+            abort "Expected one formula checksum for #{arch}" unless formula.scan(pattern).one?
+            formula.sub!(pattern) { "#{$1}#{digests.first}\"" }
+          end
+          File.write(path, formula)
+          RUBY
 
       - name: Validate formula
         if: steps.release.outputs.update == 'true' && steps.existing-pr.outputs.exists != 'true'
@@ -147,7 +149,6 @@ jobs:
           BRANCH: ${{ steps.existing-pr.outputs.branch }}
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release.outputs.version }}
-          REVISION: ${{ steps.release.outputs.revision }}
         run: |
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "Remote branch $BRANCH already exists without an open pull request" >&2
@@ -166,9 +167,10 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "currently $VERSION" \
-            --body "Updates the Currently source-built formula to $VERSION, pinned to verified release tag commit $REVISION. Prerelease updates require manual review."
+            --body "Updates Currently to $VERSION using the upstream signed macOS archive checksums. Prerelease updates require manual review."
 
           gh workflow run tests.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+          gh workflow run currently-install.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
 
       - name: Report result
         if: always()

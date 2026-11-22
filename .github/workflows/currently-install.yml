@@ -1,0 +1,54 @@
+name: Currently macOS install
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - Formula/currently.rb
+      - .github/workflows/currently-install.yml
+      - .github/workflows/bump-currently.yml
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478
+        with:
+          token: ${{ github.token }}
+      - name: Install upstream archive and test plugins
+        run: |
+          formula=timshadel/tools/currently
+          brew install "$formula"
+          brew test "$formula"
+          "$(brew --prefix "$formula")/libexec/currently" version
+      - name: Start system service with simulated UPS
+        run: |
+          formula=timshadel/tools/currently
+          config="$(brew --prefix)/etc/currently/currently.yaml"
+          mkdir -p "$(dirname "$config")"
+          cat > "$config" <<'YAML'
+          ups:
+            lab:
+              driver: simulator
+              scenario: online
+          listen:
+            http: "off"
+            nut: 127.0.0.1:13493
+          YAML
+          trap 'sudo brew services stop "$formula"' EXIT
+          sudo brew services start "$formula"
+          for attempt in {1..30}; do
+            if printf 'LIST UPS\nLOGOUT\n' | nc -w 1 127.0.0.1 13493 | grep -q '^UPS lab '; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$(brew --prefix)/var/log/currently.log"
+          exit 1
