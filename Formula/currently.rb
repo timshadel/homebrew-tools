@@ -10,8 +10,8 @@ class Currently < Formula
 
   depends_on :macos
 
-  # Each upstream macOS archive is the primary download for its architecture.
   release = "0.1.0-alpha1"
+  # Each upstream macOS archive is the primary download for its architecture.
   # rubocop:disable FormulaAudit/ComponentsOrder
   on_arm do
     url "https://github.com/duskglow/currently/releases/download/v#{release}/currently_#{release}_darwin_arm64.tar.gz"
