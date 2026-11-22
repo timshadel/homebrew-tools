@@ -59,7 +59,7 @@ jobs:
             puts selected.last
           ')"
 
-          current_version="$(sed -nE 's/^  version "([^"]+)"$/\1/p' Formula/currently.rb)"
+          current_version="$(sed -nE 's/^  release = "([^"]+)"$/\1/p' Formula/currently.rb)"
 
           if ruby -rrubygems -e 'exit(Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1]) ? 0 : 1)' \
             "$release" "$current_version"
@@ -120,8 +120,8 @@ jobs:
           manifest = File.readlines(ARGV.fetch(0), chomp: true)
           path = "Formula/currently.rb"
           formula = File.read(path)
-          abort "Expected one formula version" unless formula.scan(/^  version "[^"]+"$/).one?
-          formula.sub!(/^  version "[^"]+"$/, %(  version "#{version}"))
+          abort "Expected one formula version" unless formula.scan(/^  release = "[^"]+"$/).one?
+          formula.sub!(/^  release = "[^"]+"$/, %(  release = "#{version}"))
           formula.sub!(/^  revision \d+\n/, "")
           %w[arm64 amd64].each do |arch|
             filename = "currently_#{version}_darwin_#{arch}.tar.gz"

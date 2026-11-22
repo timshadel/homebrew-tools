@@ -40,11 +40,13 @@ jobs:
               scenario: online
           listen:
             http: "off"
+            metrics: "off"
             nut: 127.0.0.1:13493
           YAML
+          currently config validate --config "$config"
           trap 'sudo brew services stop "$formula"' EXIT
           sudo brew services start "$formula"
-          for attempt in {1..30}; do
+          for _ in {1..30}; do
             if printf 'LIST UPS\nLOGOUT\n' | nc -w 1 127.0.0.1 13493 | grep -q '^UPS lab '; then
               exit 0
             fi
