@@ -60,6 +60,25 @@ OpenClaw exec secrets provider backed by the official 1Password Go SDK. Supports
 brew install --cask openclaw-1p-sdk-resolver
 ```
 
+### `currently`
+
+Currently is an alpha UPS monitoring daemon that exposes a NUT-compatible server,
+Prometheus, REST, and SNMP. Its macOS IOKit USB access is designed to coexist with
+Apple's native UPS shutdown handling, but has not yet been validated on real
+macOS UPS hardware. This tap pins the upstream v0.1.0-alpha1 release.
+
+```bash
+brew install --cask timshadel/tools/currently
+currently detect
+currently serve
+```
+
+In another terminal, run `currently status` and `currently vars <UPS_NAME>`.
+Verify that `ups.load` is reported correctly and `pmset -g ps` still shows
+the UPS before enabling a persistent service. To preserve native macOS UPS
+shutdown, **do not configure Currently's `shutdown:` section**. Currently's
+NUT server can then be exposed to Home Assistant on a LAN-only interface.
+
 ## Notes
 
 Packages in this tap may be maintained here permanently or until they meet the requirements for inclusion in an official Homebrew repository.
