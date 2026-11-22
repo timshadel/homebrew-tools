@@ -44,11 +44,11 @@ jobs:
               next unless match
 
               version = match[1]
-              next unless %w[arm64 amd64].all? do |arch|
-                candidate.fetch("assets", []).any? do |asset|
+              next unless %w[arm64 amd64].all? { |arch|
+                candidate.fetch("assets", []).any? { |asset|
                   asset["name"] == "currently_#{version}_darwin_#{arch}.tar.gz"
-                end
-              end
+                }
+              }
 
               [Gem::Version.new(version), version]
             end
