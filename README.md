@@ -81,10 +81,28 @@ and uninstall that cask before installing the formula:
 brew uninstall --cask timshadel/tools/currently
 brew install timshadel/tools/currently
 currently version
-currently detect
 ```
 
-No service is started at installation.
+### Approve the first launch on macOS if prompted
+
+The upstream macOS release is not notarized. On macOS 27.2.1, Gatekeeper may
+show **“currently” Not Opened** when you first run `currently version`.
+On a headless Mac, connect through Screen Sharing to see the alert.
+
+1. Click **Done** to dismiss the alert. The first command may end with
+   `zsh: killed`.
+2. On the Mac running Currently, open **System Settings → Privacy & Security**,
+   scroll to **Security**, and click **Open Anyway** for Currently.
+3. Run `currently version` again. Click **Open Anyway** in the second alert
+   and authenticate with an administrator password when prompted.
+4. Confirm that the version prints, then run `currently version` once more
+   to check that it runs without another prompt.
+
+Use this process for the **Apple could not verify** alert after verifying
+the download. See [Apple’s Gatekeeper guidance](https://support.apple.com/en-us/102445).
+
+Once the version check succeeds, run `currently detect` before configuring the
+service. Homebrew leaves the service stopped at installation.
 
 ### Configure for monitoring only
 
