@@ -18,6 +18,12 @@ cask "currently" do
 
   binary "currently"
 
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr", args: ["-d", "com.apple.quarantine", "{{staged_path}}/currently"], must_succeed: false
+    end
+  end
+
   zap :not_required
 
   caveats <<~EOS
