@@ -2,17 +2,16 @@ class Currently < Formula
   desc "UPS monitoring daemon with NUT, Prometheus, REST, and SNMP"
   homepage "https://github.com/duskglow/currently"
   url "https://github.com/duskglow/currently.git",
-      tag: "v0.1.0-alpha1",
+      tag:      "v0.1.0-alpha1",
       revision: "b0445ffef9fc12b84b7b40dc8e23cf29c8448267"
-  version "0.1.0-alpha1"
   license "Apache-2.0"
 
   livecheck do
     skip "Prerelease updates are proposed for review by bump-currently.yml."
   end
 
-  depends_on :macos
   depends_on "go" => :build
+  depends_on :macos
 
   def install
     libexec.mkpath
@@ -21,8 +20,8 @@ class Currently < Formula
 
     (libexec/"plugins").mkpath
     {
-      "mqtt" => "currently-output-mqtt",
-      "snmp" => "currently-driver-snmp",
+      "mqtt"   => "currently-output-mqtt",
+      "snmp"   => "currently-driver-snmp",
       "serial" => "currently-driver-serial",
     }.each do |plugin, executable|
       system "go", "build", "-trimpath", "-ldflags=-s -w",
