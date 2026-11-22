@@ -20,9 +20,7 @@ cask "currently" do
 
   postflight_steps do
     on_macos do
-      run "/usr/bin/xattr",
-          args: ["-d", "com.apple.quarantine", "{{staged_path}}/currently"],
-          must_succeed: false
+      run "/usr/bin/xattr", args: ["-d", "com.apple.quarantine", "{{staged_path}}/currently"], must_succeed: false
     end
   end
 
