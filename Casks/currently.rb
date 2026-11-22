@@ -37,5 +37,4 @@ cask "currently" do
     Currently as a launchd service after confirming shared USB access,
     an accurate ups.load value, and macOS's own UPS status.
   EOS
-
 end
