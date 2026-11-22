@@ -18,6 +18,8 @@ cask "currently" do
 
   binary "currently"
 
+  zap :not_required
+
   caveats <<~EOS
     Currently is an alpha release whose macOS USB transport is not yet
     validated by the upstream developer on physical hardware.
@@ -36,5 +38,4 @@ cask "currently" do
     an accurate ups.load value, and macOS's own UPS status.
   EOS
 
-  zap :not_required
 end
