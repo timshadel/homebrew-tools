@@ -123,11 +123,11 @@ jobs:
           abort "Expected one formula version" unless formula.scan(/^  release = "[^"]+"$/).one?
           formula.sub!(/^  release = "[^"]+"$/, %(  release = "#{version}"))
           formula.sub!(/^  revision \d+\n/, "")
-          %w[arm64 amd64].each do |arch|
+          { "arm" => "arm64", "intel" => "amd64" }.each do |key, arch|
             filename = "currently_#{version}_darwin_#{arch}.tar.gz"
             digests = manifest.filter_map { |line| line[/\A([0-9a-f]{64})\s+\*?#{Regexp.escape(filename)}\z/, 1] }
             abort "Expected one signed checksum for #{filename}" unless digests.one?
-            pattern = /(darwin_#{arch}\.tar\.gz"\n\s+sha256 ")[0-9a-f]{64}"/
+            pattern = /(^    #{key}:\s+")[0-9a-f]{64}"/
             abort "Expected one formula checksum for #{arch}" unless formula.scan(pattern).one?
             formula.sub!(pattern) { "#{$1}#{digests.first}\"" }
           end

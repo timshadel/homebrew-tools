@@ -1,6 +1,14 @@
 class Currently < Formula
   desc "UPS monitoring daemon with NUT, Prometheus, REST, and SNMP"
   homepage "https://github.com/duskglow/currently"
+  release = "0.1.0-alpha1"
+  arch = on_arch_conditional(arm: "arm64", intel: "amd64")
+  digest = on_arch_conditional(
+    arm:   "d32083711b830b43fe04a13307d89361cbc5dc5f92acc0f9d4afc055e9cd177a",
+    intel: "846b9d42bd5ad87d665f3ffbda4ff8645784c7f64fde69d3490ca3c7db4f29bc",
+  )
+  url "https://github.com/duskglow/currently/releases/download/v#{release}/currently_#{release}_darwin_#{arch}.tar.gz"
+  sha256 digest
   license "Apache-2.0"
   revision 1
 
@@ -9,20 +17,6 @@ class Currently < Formula
   end
 
   depends_on :macos
-
-  release = "0.1.0-alpha1"
-  # Each upstream macOS archive is the primary download for its architecture.
-  # rubocop:disable FormulaAudit/ComponentsOrder
-  on_arm do
-    url "https://github.com/duskglow/currently/releases/download/v#{release}/currently_#{release}_darwin_arm64.tar.gz"
-    sha256 "d32083711b830b43fe04a13307d89361cbc5dc5f92acc0f9d4afc055e9cd177a"
-  end
-
-  on_intel do
-    url "https://github.com/duskglow/currently/releases/download/v#{release}/currently_#{release}_darwin_amd64.tar.gz"
-    sha256 "846b9d42bd5ad87d665f3ffbda4ff8645784c7f64fde69d3490ca3c7db4f29bc"
-  end
-  # rubocop:enable FormulaAudit/ComponentsOrder
 
   def install
     libexec.install "currently", "plugins"
