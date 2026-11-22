@@ -63,12 +63,13 @@ brew install --cask openclaw-1p-sdk-resolver
 ## Currently UPS monitor (formula)
 
 Currently is a UPS monitoring daemon exposing NUT, REST, Prometheus and SNMP.
-This tap builds Currently from a pinned upstream Git tag and installs its CLI and
-plugins as a Homebrew formula. **No hardware IDs, device names, IP addresses or
+This tap installs the upstream macOS release for Apple Silicon or Intel, including
+the CLI and its plugins. Installation requires no Go toolchain. **No hardware IDs, device names, IP addresses or
 shutdown policies are included in the formula.**
 
 The formula is versioned by a daily and manually dispatched **Bump Currently
-formula** GitHub Actions workflow, which opens review PRs for new upstream
+formula** GitHub Actions workflow, which verifies upstream’s signed checksum
+manifest and opens review PRs for new upstream
 releases (including prereleases) rather than merging them automatically.
 
 ### Install and migrate from the previous cask
