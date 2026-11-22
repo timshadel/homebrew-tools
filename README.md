@@ -65,7 +65,9 @@ brew install --cask openclaw-1p-sdk-resolver
 Currently is an alpha UPS monitoring daemon that exposes a NUT-compatible server,
 Prometheus, REST, and SNMP. Its macOS IOKit USB access is designed to coexist with
 Apple's native UPS shutdown handling, but has not yet been validated on real
-macOS UPS hardware. This tap pins the upstream v0.1.0-alpha1 release.
+macOS UPS hardware. This tap starts at upstream v0.1.0-alpha1. The daily and manually dispatched
+**Bump Currently cask** GitHub Actions workflow checks upstream releases,
+including prereleases, and opens review PRs with official macOS artifact hashes.
 
 ```bash
 brew install --cask timshadel/tools/currently
