@@ -74,24 +74,50 @@ releases (including prereleases) rather than merging them automatically.
 
 ### Install and migrate from the previous cask
 
-If the old binary-only cask is installed, stop any foreground Currently process
-and uninstall that cask before installing the formula:
+If you are migrating from the old cask, stop any foreground Currently process
+and run `brew uninstall --cask timshadel/tools/currently` first.
 
 ```bash
-brew uninstall --cask timshadel/tools/currently
 brew install timshadel/tools/currently
 currently version
-currently detect
 ```
 
-No service is started at installation.
+Homebrew leaves the service stopped at installation. Once the version check
+succeeds, continue to [Configure for monitoring only](#configure-for-monitoring-only).
+
+### Approve the first launch on macOS if prompted
+
+The upstream macOS release is not notarized. On macOS 27.2.1, Gatekeeper may
+show **“currently” Not Opened** when you first run `currently version`.
+On a headless Mac, connect through Screen Sharing to see the alert.
+
+1. Click **Done** to dismiss the alert. The first command may end with
+   `zsh: killed`.
+2. On the Mac running Currently, open **System Settings → Privacy & Security**,
+   scroll to **Security**, and click **Open Anyway** for Currently.
+3. Run `currently version` again. Click **Open Anyway** in the second alert
+   and authenticate with an administrator password when prompted.
+4. Confirm that the version prints, then run `currently version` once more
+   to check that it runs without another prompt.
+
+Use this process for the **Apple could not verify** alert after verifying
+the download. See [Apple’s Gatekeeper guidance](https://support.apple.com/en-us/102445).
 
 ### Configure for monitoring only
 
-Discover the local UPS(es), then generate an operator-owned configuration:
+Run `currently detect` to check that Currently sees your UPS. On a new setup,
+generate the host configuration from the detected hardware.
 
 ```bash
 currently init --yes --no-shutdown --output "$(brew --prefix)/etc/currently/currently.yaml"
+```
+
+If you already have a configuration at that path, keep it and skip
+`currently init`. The file lives outside the versioned installation and
+survives Homebrew upgrades. Validate it after editing and before starting the
+service.
+
+```bash
 currently config validate --config "$(brew --prefix)/etc/currently/currently.yaml"
 ```
 
@@ -113,11 +139,17 @@ sudo brew services start timshadel/tools/currently
 sudo brew services list
 ```
 
-This installs a system LaunchDaemon and runs without anyone being logged in.
-Use `sudo brew services restart timshadel/tools/currently` after changing the
-config. The formula uses Homebrew's stable `opt` path and keeps per-machine
-configuration outside versioned installs. The service is optional; user-level
-service management is also supported by Homebrew.
+This registers a system LaunchDaemon so Currently starts at boot without a
+login. Check that Currently reports the detected UPS.
+
+```bash
+currently status --config "$(brew --prefix)/etc/currently/currently.yaml"
+```
+
+If the service fails to start or the UPS is missing, check
+`$(brew --prefix)/var/log/currently.log`. After changing the YAML, validate it
+and run `sudo brew services restart timshadel/tools/currently` to load the
+new settings.
 
 `brew services` with sudo runs the service as root and trusts Homebrew's prefix
 owner; review the Homebrew security guidance before enabling system service.
